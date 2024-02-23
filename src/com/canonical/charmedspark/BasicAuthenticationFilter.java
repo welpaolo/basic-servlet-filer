@@ -17,18 +17,20 @@ public class BasicAuthenticationFilter implements Filter {
   /** Logger */
   private static final Logger LOG = LoggerFactory.getLogger(BasicAuthenticationFilter.class);
 
-  private List<String> users = new ArrayList<String>();
+  private List<String> allowedEntities;
+  private String httpHeaderName;
 
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
-    String userParam = filterConfig.getInitParameter("users");
-    String [] users = {}; 
-    if (userParam != null){
-      users=userParam.split(",");
+    this.httpHeaderName = filterConfig.getInitParameter("authorizedParameter");
+    String entities = filterConfig.getInitParameter("authorizedEntities");
+    String [] eList = {}; 
+    if (entities != null){
+      eList=entities.split(",");
     }
     
-    LOG.info("Allowed users: " + Arrays.toString(users));
-    this.users = new ArrayList<String>(Arrays.asList(users));
+    LOG.info("Allowed users: " + Arrays.toString(eList));
+    this.allowedEntities = new ArrayList<String>(Arrays.asList(eList));
   }
 
   @Override
@@ -37,8 +39,14 @@ public class BasicAuthenticationFilter implements Filter {
 
     HttpServletRequest request = (HttpServletRequest) servletRequest;
     HttpServletResponse response = (HttpServletResponse) servletResponse;
+
     LOG.info("doFilter");
+    
     HttpServletRequest httpRequest = (HttpServletRequest) request;
+
+    String requestEntity = request.getHeader(this.httpHeaderName);
+    LOG.debug("Requesting Entity: ", requestEntity);
+
     Enumeration<String> headerNames = httpRequest.getHeaderNames();
     List<String> hds = new ArrayList<>();
     if (headerNames != null) {
@@ -50,7 +58,22 @@ public class BasicAuthenticationFilter implements Filter {
     // List all the headers in the http request
     LOG.info("Headers: " + Arrays.toString(hds.toArray()));
     response.setHeader("test-header", Arrays.toString(hds.toArray()));
-    response.setHeader("Users", this.users.toString());
+    response.setHeader("Users", this.allowedEntities.toString());
+
+    boolean authorized = false;
+    // Authorization 
+    if (this.allowedEntities.contains("*")){
+      authorized = true;
+    } else if (this.allowedEntities.contains(requestEntity)){
+      authorized = true;
+    }
+
+    if (authorized == true){
+      response.setHeader("Authorized", "True");
+    } else {
+      unauthorized(response);
+    }
+
     filterChain.doFilter(servletRequest, servletResponse);
   }
 
@@ -59,7 +82,7 @@ public class BasicAuthenticationFilter implements Filter {
   }
 
   private void unauthorized(HttpServletResponse response, String message) throws IOException {
-    response.setHeader("WWW-Authenticate", "False");
+    response.setHeader("Authorized", "False");
     response.sendError(401, message);
   }
 
