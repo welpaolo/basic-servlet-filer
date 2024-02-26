@@ -39,13 +39,12 @@ public class BasicAuthenticationFilter implements Filter {
 
     HttpServletRequest request = (HttpServletRequest) servletRequest;
     HttpServletResponse response = (HttpServletResponse) servletResponse;
-
-    LOG.info("doFilter");
     
+    LOG.debug("doFilter");   
     HttpServletRequest httpRequest = (HttpServletRequest) request;
 
-    String requestEntity = request.getHeader(this.httpHeaderName);
-    LOG.debug("Requesting Entity: ", requestEntity);
+    String requestEntityName = request.getHeader(this.httpHeaderName);
+    LOG.debug("Request Entity Name: " + requestEntityName);
 
     Enumeration<String> headerNames = httpRequest.getHeaderNames();
     List<String> hds = new ArrayList<>();
@@ -55,22 +54,22 @@ public class BasicAuthenticationFilter implements Filter {
         hds.add(header_name);
       }
     }
-    // List all the headers in the http request
-    LOG.info("Headers: " + Arrays.toString(hds.toArray()));
-    response.setHeader("test-header", Arrays.toString(hds.toArray()));
-    response.setHeader("Users", this.allowedEntities.toString());
-
+    // List all the headers in the request
+    LOG.debug("Input HEADERs: " + Arrays.toString(hds.toArray()));
+    
     boolean authorized = false;
-    // Authorization 
+    // Check if user is authorized 
     if (this.allowedEntities.contains("*")){
       authorized = true;
-    } else if (this.allowedEntities.contains(requestEntity)){
+    } else if (this.allowedEntities.contains(requestEntityName)){
       authorized = true;
     }
 
-    if (authorized == true){
+    if (authorized){
       response.setHeader("Authorized", "True");
+      response.setHeader("AuthorizedEntity", requestEntityName);
     } else {
+      LOG.info("Entity: " + requestEntityName + "is not authorized.");
       unauthorized(response);
     }
 
